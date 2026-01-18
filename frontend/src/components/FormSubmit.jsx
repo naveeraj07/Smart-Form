@@ -9,12 +9,8 @@ const FormSubmit = () => {
 
   useEffect(() => {
     const fetchForm = async () => {
-      try {
-        const res = await axios.get(`http://localhost:5000/api/forms/${id}`);
-        setForm(res.data);
-      } catch (err) {
-        console.error(err);
-      }
+      const res = await axios.get(`http://localhost:5000/api/forms/${id}`);
+      setForm(res.data);
     };
     fetchForm();
   }, [id]);
@@ -23,35 +19,111 @@ const FormSubmit = () => {
     setFormData({ ...formData, [label]: value });
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      await axios.post(`http://localhost:5000/api/forms/submit/${id}`, { data: formData });
-      alert('Form submitted successfully!');
-      setFormData({}); // Clear form
-    } catch (err) {
-      alert('Error submitting form');
-    }
+  const handleCheckbox = (label, value) => {
+    const prev = formData[label] || [];
+    setFormData({
+      ...formData,
+      [label]: prev.includes(value)
+        ? prev.filter((v) => v !== value)
+        : [...prev, value]
+    });
   };
 
-  if (!form) return <div className="text-center mt-10">Loading Form...</div>;
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    await axios.post(
+      `http://localhost:5000/api/forms/submit/${id}`,
+      { data: formData }
+    );
+    alert('Form submitted!');
+    setFormData({});
+  };
+
+  if (!form) return <div className="text-center mt-10">Loading...</div>;
 
   return (
-    <div className="p-8 max-w-lg mx-auto bg-white shadow-xl rounded-lg mt-10 border-t-4 border-blue-600">
-      <h1 className="text-3xl font-bold mb-6 text-gray-800">{form.title}</h1>
+    <div className="p-8 max-w-lg mx-auto bg-white shadow-xl rounded-lg mt-10">
+      <h1 className="text-3xl font-bold mb-6">{form.title}</h1>
+
       <form onSubmit={handleSubmit}>
         {form.fields.map((field, idx) => (
           <div key={idx} className="mb-5">
-            <label className="block text-gray-700 font-medium mb-2">{field.label}</label>
-            <input
-              type={field.fieldType}
-              required={field.required}
-              className="w-full border-gray-300 border p-3 rounded focus:ring-2 focus:ring-blue-500 outline-none"
-              onChange={(e) => handleChange(field.label, e.target.value)}
-            />
+            <label className="block font-medium mb-2">
+              {field.label}
+            </label>
+
+            {['text', 'email', 'number'].includes(field.fieldType) && (
+              <input
+                type={field.fieldType}
+                required={field.required}
+                className="w-full border p-3 rounded"
+                onChange={(e) =>
+                  handleChange(field.label, e.target.value)
+                }
+              />
+            )}
+
+            {field.fieldType === 'textarea' && (
+              <textarea
+                className="w-full border p-3 rounded"
+                required={field.required}
+                onChange={(e) =>
+                  handleChange(field.label, e.target.value)
+                }
+              />
+            )}
+
+            {field.fieldType === 'radio' &&
+              field.options.map((opt, i) => (
+                <label key={i} className="block">
+                  <input
+                    type="radio"
+                    name={field.label}
+                    value={opt}
+                    required={field.required}
+                    onChange={(e) =>
+                      handleChange(field.label, e.target.value)
+                    }
+                  />
+                  <span className="ml-2">{opt}</span>
+                </label>
+              ))}
+
+            {field.fieldType === 'checkbox' &&
+              field.options.map((opt, i) => (
+                <label key={i} className="block">
+                  <input
+                    type="checkbox"
+                    value={opt}
+                    onChange={() =>
+                      handleCheckbox(field.label, opt)
+                    }
+                  />
+                  <span className="ml-2">{opt}</span>
+                </label>
+              ))}
+
+            {field.fieldType === 'select' && (
+              <select
+                className="w-full border p-3 rounded"
+                required={field.required}
+                onChange={(e) =>
+                  handleChange(field.label, e.target.value)
+                }
+              >
+                <option value="">Select</option>
+                {field.options.map((opt, i) => (
+                  <option key={i}>{opt}</option>
+                ))}
+              </select>
+            )}
           </div>
         ))}
-        <button type="submit" className="w-full bg-blue-600 text-white p-3 rounded font-bold hover:bg-blue-700 transition">
+
+        <button
+          type="submit"
+          className="w-full bg-blue-600 text-white p-3 rounded font-bold"
+        >
           Submit
         </button>
       </form>

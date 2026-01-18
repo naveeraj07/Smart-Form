@@ -2,7 +2,8 @@ import { useState } from 'react';
 import axios from 'axios';
 import { useNavigate, Link } from 'react-router-dom';
 
-const Login = () => {
+// 1. Accept 'setUser' as a prop
+const Login = ({ setUser }) => {
   const [formData, setFormData] = useState({ username: '', password: '' });
   const navigate = useNavigate();
 
@@ -10,10 +11,26 @@ const Login = () => {
     e.preventDefault();
     try {
       const res = await axios.post('http://localhost:5000/api/auth/login', formData);
+      
+      // 2. Save Token
       localStorage.setItem('token', res.data.token);
-      navigate('/dashboard');
+
+      // 3. Save User Data (Important for App.js persistence)
+      // Note: Ensure your Backend actually sends 'user' in the response object!
+      if (res.data.user) {
+        localStorage.setItem('user', JSON.stringify(res.data.user));
+        
+        // 4. Update App State (This unlocks the Dashboard)
+        setUser(res.data.user);
+        
+        navigate('/dashboard');
+      } else {
+        alert("Login successful, but user data is missing from server response.");
+      }
+
     } catch (err) {
-      alert('Invalid Credentials');
+      console.error(err);
+      alert(err.response?.data?.message || 'Invalid Credentials');
     }
   };
 
