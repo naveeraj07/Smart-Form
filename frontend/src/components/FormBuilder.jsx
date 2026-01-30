@@ -4,10 +4,12 @@ import { useNavigate } from 'react-router-dom';
 
 const FormBuilder = ({ user }) => {
   const [title, setTitle] = useState('');
+  const [themeColor, setThemeColor] = useState('#2563EB'); 
   const [fields, setFields] = useState([]);
   const navigate = useNavigate();
 
-  // Add a new question
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
   const addField = () => {
     setFields([
       ...fields,
@@ -15,7 +17,8 @@ const FormBuilder = ({ user }) => {
         label: '',
         fieldType: 'text', 
         required: false,
-        options: ['Option 1'] // Default option
+        options: ['Option 1'],
+        logic: { targetField: '', targetValue: '', action: 'show' } 
       }
     ]);
   };
@@ -23,6 +26,13 @@ const FormBuilder = ({ user }) => {
   const handleFieldChange = (index, key, value) => {
     const newFields = [...fields];
     newFields[index][key] = value;
+    setFields(newFields);
+  };
+
+  const handleLogicChange = (index, logicKey, value) => {
+    const newFields = [...fields];
+    if (!newFields[index].logic) newFields[index].logic = {};
+    newFields[index].logic[logicKey] = value;
     setFields(newFields);
   };
 
@@ -50,13 +60,14 @@ const FormBuilder = ({ user }) => {
 
     const formData = {
       title,
+      themeColor, 
       fields, 
       createdBy: user.username
     };
 
     try {
       const token = localStorage.getItem('token');
-      await axios.post('http://localhost:5000/api/forms/create', formData, {
+      await axios.post(`${API_URL}/forms/create`, formData, {
         headers: { 'x-auth-token': token }
       });
       navigate('/dashboard');
@@ -67,84 +78,140 @@ const FormBuilder = ({ user }) => {
   };
 
   return (
-    <div className="p-8 max-w-3xl mx-auto bg-white shadow-lg rounded-lg mt-10">
-      <h2 className="text-3xl font-bold mb-6 text-gray-800">Create New Form</h2>
+    <div className="p-8 max-w-4xl mx-auto bg-white shadow-lg rounded-lg mt-10">
+      
+      {/* HEADER SECTION */}
+      <div className="flex justify-between items-center mb-6">
+        <h2 className="text-3xl font-bold text-gray-800">Create Smart Form</h2>
+        
+        <div className="flex items-center gap-2 bg-gray-100 p-2 rounded border">
+          <span className="text-sm font-semibold text-gray-600">Theme:</span>
+          <input 
+            type="color" 
+            value={themeColor}
+            onChange={(e) => setThemeColor(e.target.value)}
+            className="h-8 w-10 cursor-pointer border-0 p-0 bg-transparent rounded"
+          />
+        </div>
+      </div>
 
       <input
-        className="w-full border-b-2 border-gray-300 p-3 mb-8 text-2xl focus:outline-none focus:border-blue-500"
+        className="w-full border-b-4 p-3 mb-8 text-2xl focus:outline-none placeholder-gray-300 transition-colors"
         placeholder="Untitled Form"
         onChange={(e) => setTitle(e.target.value)}
+        style={{ borderColor: themeColor }}
       />
 
       {fields.map((field, index) => (
-        <div key={index} className="mb-6 bg-gray-50 p-6 rounded-lg border shadow-sm">
-          <div className="flex gap-4 mb-4">
-            <input
-              placeholder="Question Title"
-              className="flex-1 p-3 border rounded focus:ring-2 focus:ring-blue-100 outline-none"
-              value={field.label}
-              onChange={(e) => handleFieldChange(index, 'label', e.target.value)}
-            />
+        <div key={index} className="mb-6 bg-gray-50 p-6 rounded-lg border shadow-sm relative transition-all hover:shadow-md">
+          
+          {/* REMOVE BUTTON */}
+          <button 
+            onClick={() => {
+                const f = [...fields]; f.splice(index, 1); setFields(f);
+            }} 
+            className="absolute top-2 right-2 text-gray-400 hover:text-red-500 font-bold text-xl px-2"
+            title="Remove Question"
+          >
+            ×
+          </button>
+
+          <div className="flex flex-col md:flex-row gap-4 mb-4">
+            <div className="flex-1">
+                <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Question</label>
+                <input
+                placeholder="e.g. What is your email address?"
+                className="w-full p-3 border rounded focus:ring-2 focus:ring-blue-100 outline-none"
+                value={field.label}
+                onChange={(e) => handleFieldChange(index, 'label', e.target.value)}
+                />
+            </div>
             
-            {/* UPDATED DROPDOWN WITH ALL TYPES */}
-            <select
-              className="p-3 border rounded bg-white w-48 font-medium"
-              value={field.fieldType}
-              onChange={(e) => handleFieldChange(index, 'fieldType', e.target.value)}
-            >
-              <option value="text">Short Text</option>
-              <option value="textarea">Long Text</option>
-              <option value="number">Number</option>
-              <option value="email">Email</option>
-              <option value="radio">Single Choice (Radio)</option>
-              <option value="checkbox">Multiple Choice</option>
-              <option value="select">Dropdown</option>
-            </select>
+            <div className="w-full md:w-48">
+                <label className="text-xs font-bold text-gray-400 uppercase mb-1 block">Type</label>
+                <select
+                className="w-full p-3 border rounded bg-white font-medium"
+                value={field.fieldType}
+                onChange={(e) => handleFieldChange(index, 'fieldType', e.target.value)}
+                >
+                <option value="text">Short Text</option>
+                <option value="textarea">Long Text</option> {/* ADDED THIS */}
+                <option value="email">Email</option>         {/* ADDED THIS */}
+                <option value="number">Number</option>
+                <option value="radio">Single Choice</option>
+                <option value="checkbox">Multiple Choice</option>
+                <option value="select">Dropdown</option>
+                </select>
+            </div>
           </div>
 
-          {/* DYNAMIC OPTIONS SECTION */}
-          {/* Only show "Add Option" for types that need lists */}
+          {/* DYNAMIC OPTIONS (Only for choice fields) */}
           {['radio', 'checkbox', 'select'].includes(field.fieldType) && (
-            <div className="ml-4 mt-2 pl-4 border-l-2 border-blue-200">
-              <p className="text-xs text-gray-500 mb-2 font-bold uppercase">
-                {field.fieldType === 'checkbox' ? 'User can pick MANY' : 'User can pick ONE'}
-              </p>
-              
+            <div className="ml-2 mb-6 pl-4 border-l-4 border-gray-200">
+              <p className="text-xs text-gray-500 mb-2 font-bold uppercase">Options</p>
               {field.options.map((option, optIndex) => (
                 <div key={optIndex} className="flex items-center gap-2 mb-2">
-                  <div className={`w-4 h-4 border ${field.fieldType === 'radio' ? 'rounded-full' : 'rounded-sm'} border-gray-400`}></div>
-                  
+                  <div className={`w-4 h-4 border border-gray-400 ${field.fieldType === 'radio' ? 'rounded-full' : 'rounded-sm'}`}></div>
                   <input
                     type="text"
                     className="flex-1 p-1 bg-transparent border-b border-gray-300 focus:border-blue-500 outline-none"
                     value={option}
                     onChange={(e) => handleOptionChange(index, optIndex, e.target.value)}
                   />
-                  
-                  <button 
-                    onClick={() => removeOption(index, optIndex)}
-                    className="text-red-500 hover:text-red-700 px-2 font-bold"
-                  >
-                    ×
-                  </button>
+                  <button onClick={() => removeOption(index, optIndex)} className="text-red-400 hover:text-red-600 font-bold">×</button>
                 </div>
               ))}
-              
               <button 
                 onClick={() => addOption(index)}
-                className="text-sm text-blue-600 hover:underline mt-2 font-medium"
+                className="text-sm font-bold hover:underline mt-1"
+                style={{ color: themeColor }}
               >
                 + Add Option
               </button>
             </div>
           )}
 
-          <div className="flex justify-end mt-2">
-            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer">
+          {/* LOGIC BUILDER UI */}
+          <div className="mt-4 pt-4 border-t border-dashed border-gray-300">
+            <div className="flex items-center gap-2 mb-2">
+                <span className="text-xs font-bold bg-yellow-100 text-yellow-800 px-2 py-1 rounded">⚡ LOGIC</span>
+                <span className="text-xs text-gray-500">Only show this question if...</span>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-3 bg-white p-3 rounded border text-sm">
+                <span>If answer to</span>
+                
+                <select 
+                    className="border p-2 rounded bg-gray-50 max-w-[200px]"
+                    value={field.logic?.targetField || ''}
+                    onChange={(e) => handleLogicChange(index, 'targetField', e.target.value)}
+                >
+                    <option value="">-- Always Show --</option>
+                    {fields.map((f, i) => (
+                        i < index && f.label ? <option key={i} value={f.label}>{f.label}</option> : null
+                    ))}
+                </select>
+
+                <span>equals</span>
+
+                <input 
+                    type="text" 
+                    placeholder="Value (e.g. Yes)"
+                    className="border p-2 rounded w-32"
+                    value={field.logic?.targetValue || ''}
+                    onChange={(e) => handleLogicChange(index, 'targetValue', e.target.value)}
+                />
+            </div>
+          </div>
+
+          {/* Footer of Card */}
+          <div className="flex justify-end mt-4">
+            <label className="flex items-center gap-2 text-sm text-gray-600 cursor-pointer select-none">
               <input
                 type="checkbox"
                 checked={field.required}
                 onChange={(e) => handleFieldChange(index, 'required', e.target.checked)}
+                className="accent-blue-600"
               />
               Required Question
             </label>
@@ -153,11 +220,15 @@ const FormBuilder = ({ user }) => {
       ))}
 
       <div className="mt-8 flex gap-4">
-        <button onClick={addField} className="px-6 py-2 border-2 border-gray-300 text-gray-600 rounded hover:bg-gray-100 transition">
+        <button onClick={addField} className="px-6 py-3 border-2 border-gray-300 text-gray-600 font-bold rounded hover:bg-gray-50 transition flex-1">
           + Add Question
         </button>
-        <button onClick={saveForm} className="bg-blue-600 text-white px-8 py-2 rounded shadow hover:bg-blue-700 transition font-bold ml-auto">
-          Save Form
+        <button 
+          onClick={saveForm} 
+          className="text-white px-8 py-3 rounded shadow-lg hover:opacity-90 transition font-bold flex-1"
+          style={{ backgroundColor: themeColor }}
+        >
+          💾 Save Form
         </button>
       </div>
     </div>

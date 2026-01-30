@@ -4,48 +4,47 @@ const Form = require('../models/Form');
 const auth = require('../middleware/auth');
 const User = require('../models/User');
 
-// Create Form
+// @route   POST api/forms/create
+// @desc    Create a new form
 router.post('/create', auth, async (req, res) => {
   try {
-    console.log("📥 Received Form Data:", req.body); // DEBUGGING
+    // 1. We now extract 'themeColor' too!
+    const { title, fields, themeColor } = req.body;
 
-    // We extract 'fields' (which includes options)
-    const { title, fields } = req.body;
-
-    // Validation
     if (!title || !fields) {
       return res.status(400).json({ msg: 'Please include title and fields' });
     }
 
     const newForm = new Form({
       title,
-      // We explicitly pass fields to ensure options are included
-      fields, 
-      // We use the User ID from the token (Secure)
-      createdBy: req.user.id 
+      fields,
+      themeColor: themeColor || '#2563EB', // Save the color (default to blue)
+      createdBy: req.user.id, // Using 'createdBy' to match your schema
+      user: req.user.id       // Saving 'user' too just in case your Schema uses it
     });
 
     const savedForm = await newForm.save();
-    console.log("✅ Form Saved to DB:", savedForm); // CONFIRMATION
     res.json(savedForm);
 
   } catch (err) {
-    console.error("❌ SAVE ERROR:", err.message); // READ THIS IN TERMINAL
+    console.error("❌ SAVE ERROR:", err.message);
     res.status(500).send('Server Error: ' + err.message);
   }
 });
 
-// Get User's Forms (Dashboard)
-router.get('/user/me', auth, async (req, res) => {
+// @route   GET api/forms/my-forms  <-- UPDATED NAME (Was /user/me)
+// @desc    Get User's Forms (Dashboard)
+// 🚨 THIS MUST BE BEFORE THE '/:id' ROUTE
+router.get('/my-forms', auth, async (req, res) => {
   try {
-    // 1. First, get the user's details to find their username
     const user = await User.findById(req.user.id);
 
-    // 2. Find forms created by their ID *OR* their Username
+    // Keep your smart logic that checks both ID and Username
     const forms = await Form.find({ 
       $or: [
-        { createdBy: req.user.id },     // Matches New Forms
-        { createdBy: user.username }    // Matches Old Forms
+        { createdBy: req.user.id },
+        { createdBy: user.username },
+        { user: req.user.id } 
       ]
     }).sort({ createdAt: -1 });
 
@@ -56,7 +55,8 @@ router.get('/user/me', auth, async (req, res) => {
   }
 });
 
-// Get Single Form (Public - for filling out)
+// @route   GET api/forms/:id
+// @desc    Get Single Form (Public - for filling out)
 router.get('/:id', async (req, res) => {
   try {
     const form = await Form.findById(req.params.id);
@@ -69,15 +69,16 @@ router.get('/:id', async (req, res) => {
   }
 });
 
-// Submit Form Response (Public)
+// @route   POST api/forms/submit/:id
+// @desc    Submit Form Response (Public)
 router.post('/submit/:id', async (req, res) => {
   try {
     const form = await Form.findById(req.params.id);
     if (!form) return res.status(404).json({ msg: 'Form not found' });
 
-    // Push the submitted data into the submissions array
     form.submissions.push({
-      data: req.body.data // This expects { "Question": "Answer" }
+      data: req.body.data,
+      submittedAt: new Date()
     });
 
     await form.save();
@@ -87,6 +88,8 @@ router.post('/submit/:id', async (req, res) => {
     res.status(500).send('Server Error');
   }
 });
+
+// Debug Route (Optional)
 router.get('/debug/all', async (req, res) => {
   try {
     const allForms = await Form.find({});

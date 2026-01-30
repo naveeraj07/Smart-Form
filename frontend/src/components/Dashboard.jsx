@@ -1,17 +1,21 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 const Dashboard = ({ user, onLogout }) => {
   const [forms, setForms] = useState([]);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  // ENV Variable
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
   useEffect(() => {
     const fetchForms = async () => {
       try {
         const token = localStorage.getItem('token');
-        // Get all forms (using the developer/open route for now to ensure you see them)
-        const res = await axios.get('http://localhost:5000/api/forms/user/me', {
+        // Retrieve forms
+        const res = await axios.get(`${API_URL}/forms/my-forms`, {
           headers: { 'x-auth-token': token }
         });
         setForms(res.data);
@@ -24,83 +28,86 @@ const Dashboard = ({ user, onLogout }) => {
     fetchForms();
   }, []);
 
-  // NEW FUNCTION: Copies the form URL to clipboard
   const handleCopyLink = (formId) => {
     const link = `${window.location.origin}/form/${formId}`;
     navigator.clipboard.writeText(link);
-    alert("Link copied to clipboard! Share it with anyone.");
+    alert("Link copied to clipboard!");
   };
 
   return (
-    <div className="min-h-screen bg-gray-100">
-      <nav className="bg-white shadow p-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold text-blue-600">Form Builder App</h1>
-        <div className="flex items-center gap-4">
-          <span className="text-gray-600">Welcome, <strong>{user?.username}</strong></span>
-          <button onClick={onLogout} className="bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded text-sm transition">
+    <div className="min-h-screen bg-gray-100 p-8">
+      {/* HEADER */}
+      <div className="flex justify-between items-center mb-10 bg-white p-6 rounded-lg shadow-sm">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
+          <p className="text-gray-500">Welcome back, {user?.username}</p>
+        </div>
+        <div className="flex gap-4">
+          <button onClick={onLogout} className="text-red-500 font-semibold hover:underline">
             Logout
           </button>
-        </div>
-      </nav>
-
-      <div className="max-w-4xl mx-auto mt-10 p-6">
-        <div className="flex justify-between items-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800">Your Forms</h2>
-          <Link to="/form/create" className="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition">
+          
+          {/* --- FIX IS HERE: Points to "/create", NOT "/form/create" --- */}
+          <Link 
+            to="/create" 
+            className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold shadow hover:bg-blue-700 transition"
+          >
             + Create New Form
           </Link>
         </div>
+      </div>
 
-        {loading ? (
-          <p className="text-center text-gray-500">Loading forms...</p>
-        ) : forms.length === 0 ? (
-          <div className="bg-white p-8 rounded shadow text-center text-gray-500">
-            <p>You haven't created any forms yet.</p>
-          </div>
-        ) : (
-          <div className="grid gap-4">
-            {forms.map((form) => (
-              <div key={form._id} className="bg-white p-6 rounded-lg shadow hover:shadow-md transition flex flex-col sm:flex-row justify-between items-center gap-4">
-                
-                {/* Form Info */}
-                <div>
-                  <h3 className="text-xl font-bold text-gray-800">{form.title}</h3>
-                  <p className="text-gray-500 text-sm">Created: {new Date(form.createdAt).toLocaleDateString()}</p>
-                </div>
+      {/* FORM GRID */}
+      {loading ? (
+        <p className="text-center text-gray-500">Loading...</p>
+      ) : forms.length === 0 ? (
+        <div className="text-center py-20 bg-white rounded-lg border border-dashed border-gray-300">
+          <p className="text-gray-500 text-lg">You haven't created any forms yet.</p>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {forms.map((form) => (
+            <div 
+              key={form._id} 
+              className="bg-white p-6 rounded-xl shadow-md border-t-8 hover:shadow-lg transition flex flex-col"
+              // DYNAMIC THEME COLOR
+              style={{ borderColor: form.themeColor || '#2563EB' }}
+            >
+              <h3 className="text-xl font-bold mb-2 text-gray-800 truncate">{form.title}</h3>
+              <p className="text-xs text-gray-400 font-mono mb-6">ID: {form._id}</p>
+              
+              <div className="mt-auto space-y-3">
+                 {/* View Responses */}
+                <Link 
+                  to={`/form/${form._id}/responses`}
+                  className="block w-full text-center bg-gray-50 border border-gray-200 py-2 rounded text-gray-700 font-medium hover:bg-gray-100 transition"
+                >
+                  📊 View Responses
+                </Link>
 
-                {/* Actions Buttons */}
                 <div className="flex gap-2">
-                  
-                  {/* BUTTON 1: Copy Link (What you asked for) */}
+                  {/* Copy Link */}
                   <button 
                     onClick={() => handleCopyLink(form._id)}
-                    className="bg-green-100 text-green-700 border border-green-300 px-3 py-1 rounded hover:bg-green-200 transition text-sm font-semibold"
+                    className="flex-1 bg-blue-50 text-blue-600 py-2 rounded font-semibold text-sm hover:bg-blue-100 transition"
                   >
                     🔗 Copy Link
                   </button>
 
-                  {/* BUTTON 2: View Form (Opens in new tab just to check looks) */}
+                  {/* Preview Button */}
                   <Link 
                     to={`/form/${form._id}`} 
-                    target="_blank" 
-                    className="text-blue-500 border border-blue-500 px-3 py-1 rounded hover:bg-blue-50 transition text-sm"
+                    target="_blank"
+                    className="flex-1 text-center bg-gray-100 text-gray-600 py-2 rounded font-semibold text-sm hover:bg-gray-200 transition"
                   >
-                    Preview
-                  </Link>
-
-                  {/* BUTTON 3: View Responses */}
-                  <Link 
-                    to={`/form/${form._id}/responses`}
-                    className="bg-gray-100 text-gray-700 border border-gray-300 px-3 py-1 rounded hover:bg-gray-200 transition text-sm"
-                  >
-                    Responses ({form.submissions ? form.submissions.length : 0})
+                    👁 Preview
                   </Link>
                 </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };
