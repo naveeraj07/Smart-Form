@@ -7,20 +7,25 @@ const Login = ({ setUser }) => {
   const [formData, setFormData] = useState({ username: '', password: '' });
   const navigate = useNavigate();
 
+  // ---------------------------------------------------------
+  // ⚡ FIX: Use the Environment Variable (or localhost as backup)
+  // ---------------------------------------------------------
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const res = await axios.post('http://localhost:5000/api/auth/login', formData);
+      // Use the dynamic API_URL here
+      const res = await axios.post(`${API_URL}/auth/login`, formData);
       
       // 2. Save Token
       localStorage.setItem('token', res.data.token);
 
-      // 3. Save User Data (Important for App.js persistence)
-      // Note: Ensure your Backend actually sends 'user' in the response object!
+      // 3. Save User Data
       if (res.data.user) {
         localStorage.setItem('user', JSON.stringify(res.data.user));
         
-        // 4. Update App State (This unlocks the Dashboard)
+        // 4. Update App State
         setUser(res.data.user);
         
         navigate('/dashboard');

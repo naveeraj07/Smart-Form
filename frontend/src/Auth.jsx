@@ -1,16 +1,20 @@
 const handleSubmit = async (e) => {
   e.preventDefault();
-  const url = isRegistering 
-    ? 'http://localhost:5000/api/auth/register' 
-    : 'http://localhost:5000/api/auth/login';
+
+  // 1. Define the Base URL
+  // If we are on Vercel, this grabs the Render URL. If on your laptop, it uses localhost.
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+  // 2. Decide if it is Login or Register
+  const endpoint = isRegistering ? '/auth/register' : '/auth/login';
 
   try {
-    const response = await axios.post(url, { username, password });
+    // 3. Make the request using the dynamic URL
+    const response = await axios.post(`${API_URL}${endpoint}`, { username, password });
     
-    // With Axios, check response.data for your token or user info
+    // Success!
     onLogin(response.data); 
   } catch (err) {
-    // Axios puts the server error message inside err.response.data
     setError(err.response?.data?.message || "Login failed");
   }
 };

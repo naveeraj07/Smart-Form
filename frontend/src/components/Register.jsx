@@ -8,6 +8,11 @@ const Register = () => {
   const [error, setError] = useState('');
   const navigate = useNavigate();
 
+  // ---------------------------------------------------------
+  // ⚡ FIX: Use the Environment Variable (or localhost as backup)
+  // ---------------------------------------------------------
+  const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
   // Derived state: check if passwords match
   const passwordsMatch = formData.password === confirmPassword;
 
@@ -35,19 +40,24 @@ const Register = () => {
       return;
     }
 
-    // 2. Check Password Strength (NEW)
+    // 2. Check Password Strength
     const passwordError = validatePassword(formData.password);
     if (passwordError) {
       setError(passwordError);
       return;
     }
 
-    // 3. Submit to Backend
+    // 3. Submit to Backend (Dynamic URL)
     try {
-      // Note: If you have deployed, remember to use your API_URL here
-      const res = await axios.post('http://localhost:5000/api/auth/register', formData);
+      // ⚡ FIX: Using API_URL here
+      const res = await axios.post(`${API_URL}/auth/register`, formData);
+      
       localStorage.setItem('token', res.data.token);
+      
+      // Note: Ideally, you should also update 'setUser' state here like we did in Login,
+      // but for now, this will get you to the dashboard.
       navigate('/dashboard');
+
     } catch (err) {
       setError(err.response?.data?.message || 'Registration failed. Username may already exist.');
     }
@@ -75,11 +85,9 @@ const Register = () => {
             required
             onChange={(e) => {
               setFormData({...formData, password: e.target.value});
-              // Optional: Clear error when they start typing again
               if(error) setError(''); 
             }}
           />
-          {/* Helper Text for Rules */}
           <p className="text-xs text-gray-500 mt-1">
             * Min 8 chars, 1 number, 1 special char.
           </p>
@@ -94,12 +102,10 @@ const Register = () => {
           onChange={(e) => setConfirmPassword(e.target.value)}
         />
 
-        {/* Real-time Match Validation */}
         {confirmPassword && !passwordsMatch && (
           <p className="text-red-500 text-xs mb-4">Passwords do not match</p>
         )}
 
-        {/* General Error Message (Validation or API) */}
         {error && (
           <p className="text-red-600 text-sm font-semibold mb-4 text-center bg-red-50 p-2 rounded border border-red-200">
             {error}
@@ -117,7 +123,7 @@ const Register = () => {
         </button>
 
         <p className="mt-4 text-center text-sm">
-          Already have an account? <Link to="/" className="text-blue-500 hover:underline">Login</Link>
+          Already have an account? <Link to="/login" className="text-blue-500 hover:underline">Login</Link>
         </p>
       </form>
     </div>
