@@ -5,11 +5,11 @@ const auth = require('../middleware/auth');
 const User = require('../models/User');
 
 // @route   POST api/forms/create
-// @desc    Create a new form
+// @desc    Create a new form OR Quiz
 router.post('/create', auth, async (req, res) => {
   try {
-    // 1. We now extract 'themeColor' too!
-    const { title, fields, themeColor } = req.body;
+    // 1. EXTRACT 'formType' along with other fields
+    const { title, fields, themeColor, formType } = req.body;
 
     if (!title || !fields) {
       return res.status(400).json({ msg: 'Please include title and fields' });
@@ -18,9 +18,10 @@ router.post('/create', auth, async (req, res) => {
     const newForm = new Form({
       title,
       fields,
-      themeColor: themeColor || '#2563EB', // Save the color (default to blue)
-      createdBy: req.user.id, // Using 'createdBy' to match your schema
-      user: req.user.id       // Saving 'user' too just in case your Schema uses it
+      themeColor: themeColor || '#2563EB',
+      formType: formType || 'form', // <--- 2. SAVE FORM TYPE (Important for Quizzes)
+      createdBy: req.user.id,       // Using 'createdBy' to match your schema
+      user: req.user.id             // Saving 'user' too just in case your Schema uses it
     });
 
     const savedForm = await newForm.save();
@@ -32,9 +33,8 @@ router.post('/create', auth, async (req, res) => {
   }
 });
 
-// @route   GET api/forms/my-forms  <-- UPDATED NAME (Was /user/me)
+// @route   GET api/forms/my-forms
 // @desc    Get User's Forms (Dashboard)
-// 🚨 THIS MUST BE BEFORE THE '/:id' ROUTE
 router.get('/my-forms', auth, async (req, res) => {
   try {
     const user = await User.findById(req.user.id);
@@ -73,11 +73,15 @@ router.get('/:id', async (req, res) => {
 // @desc    Submit Form Response (Public)
 router.post('/submit/:id', async (req, res) => {
   try {
+    // 3. EXTRACT SCORE & DATA
+    const { data, score } = req.body; 
+
     const form = await Form.findById(req.params.id);
     if (!form) return res.status(404).json({ msg: 'Form not found' });
 
     form.submissions.push({
-      data: req.body.data,
+      data: data,
+      score: score || 0, // <--- 4. SAVE SCORE (Default to 0 if missing)
       submittedAt: new Date()
     });
 
