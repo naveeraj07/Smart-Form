@@ -7,6 +7,7 @@ const FormSubmit = () => {
   const navigate = useNavigate();
   const [form, setForm] = useState(null);
   const [formData, setFormData] = useState({});
+  const [loading, setLoading] = useState(true);
   
   const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 
@@ -15,8 +16,10 @@ const FormSubmit = () => {
       try {
         const res = await axios.get(`${API_URL}/forms/${id}`);
         setForm(res.data);
+        setLoading(false);
       } catch (err) {
         console.error(err);
+        setLoading(false);
       }
     };
     fetchForm();
@@ -35,69 +38,74 @@ const FormSubmit = () => {
     }
   };
 
-  // ---------------------------------------------------------
-  // 1. ✨ THE LOGIC ENGINE (Helper Function)
-  // ---------------------------------------------------------
   const shouldShowField = (field) => {
-    // If no logic is defined, always show
     if (!field.logic || !field.logic.targetField) return true;
-
-    // Get the User's Answer to the "Trigger Question"
     const targetAnswer = formData[field.logic.targetField];
     const requiredValue = field.logic.targetValue;
-
-    // If trigger question hasn't been answered yet, hide this field
     if (!targetAnswer) return false;
-
-    // Check if the answer matches
-    // (Handles both simple text and array/checkbox answers)
-    if (Array.isArray(targetAnswer)) {
-      return targetAnswer.includes(requiredValue);
-    }
     
+    if (Array.isArray(targetAnswer)) return targetAnswer.includes(requiredValue);
     return targetAnswer.toString().trim().toLowerCase() === requiredValue.toString().trim().toLowerCase();
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // ---------------------------------------------------------
-    // 2. ✨ SMARTER VALIDATION
-    // Only validate fields that are actually VISIBLE
-    // ---------------------------------------------------------
+    // 1. VALIDATION
     for (const field of form.fields) {
-      
-      // SKIP validation if the field is hidden by logic
       if (!shouldShowField(field)) continue;
-
-      // Check Required Text/Radio/Select
       if (field.required && !['checkbox'].includes(field.fieldType)) {
-        if (!formData[field.label]) {
-            alert(`Please answer: ${field.label}`);
-            return;
-        }
+        if (!formData[field.label]) return alert(`Please answer: ${field.label}`);
       }
-
-      // Check Required Checkboxes
       if (field.required && field.fieldType === 'checkbox') {
         const answers = formData[field.label] || [];
-        if (answers.length === 0) {
-          alert(`Please select at least one option for: ${field.label}`);
-          return;
-        }
+        if (answers.length === 0) return alert(`Please select option for: ${field.label}`);
       }
     }
 
+    // 2. 🧠 CALCULATE SCORE (If it's a Quiz)
+    let score = 0;
+    let totalMarks = 0;
+
+    if (form.formType === 'quiz') {
+      form.fields.forEach(field => {
+        // Only grade visible questions
+        if (shouldShowField(field)) {
+          totalMarks += (field.marks || 0);
+          
+          const userAnswer = formData[field.label];
+          // Simple string comparison for grading
+          if (userAnswer === field.correctAnswer) {
+            score += (field.marks || 0);
+          }
+        }
+      });
+    }
+
     try {
-      await axios.post(`${API_URL}/forms/submit/${id}`, { data: formData });
-      navigate('/form-success'); 
+      // 3. SEND DATA + SCORE TO BACKEND
+      await axios.post(`${API_URL}/forms/submit/${id}`, { 
+        data: formData,
+        score: score // Sending the calculated score
+      });
+
+      // 4. NAVIGATE TO SUCCESS PAGE (Pass score in state)
+      navigate('/form-success', { 
+        state: { 
+          isQuiz: form.formType === 'quiz',
+          score: score,
+          total: totalMarks
+        } 
+      }); 
+
     } catch (err) {
       console.error(err);
       alert('Error submitting form');
     }
   };
 
-  if (!form) return <div className="text-center mt-10">Loading Form...</div>;
+  if (loading) return <div className="text-center mt-10">Loading Form...</div>;
+  if (!form) return <div className="text-center mt-10 text-red-500">Form not found.</div>;
 
   const primaryColor = form.themeColor || '#2563EB';
 
@@ -107,24 +115,33 @@ const FormSubmit = () => {
         
         {/* HEADER */}
         <div className="p-6 text-white" style={{ backgroundColor: primaryColor }}>
-          <h1 className="text-3xl font-bold">{form.title}</h1>
-          <p className="opacity-90 mt-2">Please complete the form below.</p>
+          <div className="flex justify-between items-start">
+            <h1 className="text-3xl font-bold">{form.title}</h1>
+            {form.formType === 'quiz' && (
+               <span className="bg-white/20 text-xs px-2 py-1 rounded font-bold uppercase tracking-wider">Quiz</span>
+            )}
+          </div>
+          <p className="opacity-90 mt-2">{form.description || "Please complete the form below."}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
           {form.fields.map((field, idx) => {
-            
-            // ---------------------------------------------------------
-            // 3. ✨ APPLY LOGIC TO RENDERING
-            // If the logic says hide, we return null (render nothing)
-            // ---------------------------------------------------------
             if (!shouldShowField(field)) return null;
 
             return (
-              <div key={idx} className="animate-fade-in-down"> {/* Added animation class */}
-                <label className="block font-bold text-gray-700 mb-3 text-lg">
-                  {field.label} {field.required && <span className="text-red-500">*</span>}
-                </label>
+              <div key={idx} className="animate-fade-in-down">
+                <div className="flex justify-between items-center mb-2">
+                    <label className="block font-bold text-gray-700 text-lg">
+                    {field.label} {field.required && <span className="text-red-500">*</span>}
+                    </label>
+                    
+                    {/* SHOW POINTS IF QUIZ */}
+                    {form.formType === 'quiz' && field.marks > 0 && (
+                        <span className="text-xs font-bold text-gray-400 bg-gray-100 px-2 py-1 rounded-full">
+                            {field.marks} pts
+                        </span>
+                    )}
+                </div>
 
                 {/* TEXT / EMAIL / NUMBER / TEXTAREA */}
                 {['text', 'email', 'number', 'textarea'].includes(field.fieldType) && (
@@ -150,7 +167,7 @@ const FormSubmit = () => {
                 {field.fieldType === 'radio' && (
                   <div className="space-y-3">
                     {field.options.map((opt, i) => (
-                      <label key={i} className="flex items-center gap-3 p-3 border rounded-lg cursor-pointer hover:bg-gray-50">
+                      <label key={i} className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer transition hover:bg-gray-50 ${formData[field.label] === opt ? 'bg-blue-50 border-blue-200' : ''}`}>
                         <input
                           type="radio"
                           name={field.label}
@@ -203,10 +220,10 @@ const FormSubmit = () => {
 
           <button
             type="submit"
-            className="w-full text-white font-bold py-4 rounded-lg text-lg shadow-lg transform active:scale-95 transition"
+            className="w-full text-white font-bold py-4 rounded-lg text-lg shadow-lg transform active:scale-95 transition hover:opacity-90"
             style={{ backgroundColor: primaryColor }}
           >
-            Submit Response
+            {form.formType === 'quiz' ? 'Submit Quiz' : 'Submit Form'}
           </button>
         </form>
       </div>
