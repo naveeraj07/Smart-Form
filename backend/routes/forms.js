@@ -93,6 +93,35 @@ router.post('/submit/:id', async (req, res) => {
   }
 });
 
+// 🗑️ NEW DELETE ROUTE
+// @route   DELETE api/forms/:id
+// @desc    Delete a form (Only the creator can delete)
+router.delete('/:id', auth, async (req, res) => {
+  try {
+    const form = await Form.findById(req.params.id);
+
+    if (!form) {
+      return res.status(404).json({ msg: 'Form not found' });
+    }
+
+    // Check if the user deleting it is the one who created it
+    // We check both 'createdBy' and 'user' fields to be safe
+    if (form.createdBy.toString() !== req.user.id && form.user?.toString() !== req.user.id) {
+      return res.status(401).json({ msg: 'User not authorized' });
+    }
+
+    await form.deleteOne(); // Deletes the form
+    res.json({ msg: 'Form removed' });
+
+  } catch (err) {
+    console.error(err.message);
+    if (err.kind === 'ObjectId') {
+      return res.status(404).json({ msg: 'Form not found' });
+    }
+    res.status(500).send('Server Error');
+  }
+});
+
 // Debug Route (Optional)
 router.get('/debug/all', async (req, res) => {
   try {

@@ -6,7 +6,7 @@ const Dashboard = ({ user, onLogout }) => {
   const [forms, setForms] = useState([]);
   const [loading, setLoading] = useState(true);
   
-  // ⚡ 1. NEW STATE: Controls the popup visibility
+  // ⚡ 1. MODAL STATE
   const [showTypeModal, setShowTypeModal] = useState(false);
   
   const navigate = useNavigate();
@@ -18,7 +18,6 @@ const Dashboard = ({ user, onLogout }) => {
     const fetchForms = async () => {
       try {
         const token = localStorage.getItem('token');
-        // Retrieve forms
         const res = await axios.get(`${API_URL}/forms/my-forms`, {
           headers: { 'x-auth-token': token }
         });
@@ -38,10 +37,30 @@ const Dashboard = ({ user, onLogout }) => {
     alert("Link copied to clipboard!");
   };
 
-  // ⚡ 2. NEW FUNCTION: Handles the user's choice and navigates
+  // ⚡ 2. DELETE FUNCTION ADDED HERE
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this form? This action cannot be undone.")) {
+      return;
+    }
+
+    try {
+      const token = localStorage.getItem('token');
+      await axios.delete(`${API_URL}/forms/${id}`, {
+        headers: { 'x-auth-token': token }
+      });
+
+      // Remove from UI immediately
+      setForms(forms.filter(form => form._id !== id));
+      
+    } catch (err) {
+      console.error("Delete Error:", err);
+      alert("Failed to delete form.");
+    }
+  };
+
+  // ⚡ 3. NAVIGATE TO BUILDER
   const handleCreate = (type) => {
-    setShowTypeModal(false); // Close popup
-    // Navigate to builder with the chosen type ('quiz' or 'form')
+    setShowTypeModal(false); 
     navigate('/create', { state: { formType: type } });
   };
 
@@ -58,7 +77,6 @@ const Dashboard = ({ user, onLogout }) => {
             Logout
           </button>
           
-          {/* ⚡ 3. CHANGED: Button opens Modal instead of direct Link */}
           <button 
             onClick={() => setShowTypeModal(true)} 
             className="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold shadow hover:bg-blue-700 transition"
@@ -81,12 +99,10 @@ const Dashboard = ({ user, onLogout }) => {
             <div 
               key={form._id} 
               className="bg-white p-6 rounded-xl shadow-md border-t-8 hover:shadow-lg transition flex flex-col"
-              // DYNAMIC THEME COLOR
               style={{ borderColor: form.themeColor || '#2563EB' }}
             >
               <div className="flex justify-between items-start mb-2">
                 <h3 className="text-xl font-bold text-gray-800 truncate flex-1">{form.title}</h3>
-                {/* Optional: Show Badge if it's a Quiz */}
                 {form.formType === 'quiz' && (
                   <span className="bg-purple-100 text-purple-700 text-xs px-2 py-1 rounded-full font-bold ml-2">
                     QUIZ
@@ -94,7 +110,14 @@ const Dashboard = ({ user, onLogout }) => {
                 )}
               </div>
               
-              <p className="text-xs text-gray-400 font-mono mb-6">ID: {form._id}</p>
+              <div className="flex justify-between items-center mb-6">
+                <p className="text-xs text-gray-400 font-mono">
+                  {new Date(form.createdAt).toLocaleDateString()}
+                </p>
+                <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded">
+                  {form.submissions.length} Responses
+                </span>
+              </div>
               
               <div className="mt-auto space-y-3">
                  {/* View Responses */}
@@ -123,13 +146,22 @@ const Dashboard = ({ user, onLogout }) => {
                     👁 Preview
                   </Link>
                 </div>
+
+                {/* ⚡ 4. DELETE BUTTON ADDED HERE */}
+                <button 
+                    onClick={() => handleDelete(form._id)}
+                    className="w-full text-red-400 hover:text-red-600 hover:bg-red-50 py-2 rounded text-sm font-semibold transition"
+                >
+                    🗑 Delete Form
+                </button>
+
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {/* ⚡ 4. THE SELECTION MODAL (Pop-up) */}
+      {/* POP-UP MODAL */}
       {showTypeModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fadeIn">
           <div className="bg-white p-8 rounded-2xl shadow-2xl max-w-md w-full text-center transform transition-all scale-100">
