@@ -28,7 +28,11 @@ function App() {
 
   return (
     <Router>
-      <div className="min-h-screen bg-gray-100 font-sans text-gray-900">
+      {/* 👇 THE FIX IS HERE:
+         1. Removed 'bg-gray-100' (so the mesh background shows through)
+         2. Changed 'text-gray-900' to 'text-white' (for dark mode)
+      */}
+      <div className="min-h-screen font-sans text-white">
         <Routes>
           
           {/* 1. Root Path (Default) */}
@@ -37,7 +41,7 @@ function App() {
             element={ user ? <Navigate to="/dashboard" /> : <Login setUser={setUser} /> } 
           />
 
-          {/* 2. Login Path (FIXES YOUR CRASH) */}
+          {/* 2. Login Path */}
           <Route 
             path="/login" 
             element={ user ? <Navigate to="/dashboard" /> : <Login setUser={setUser} /> } 

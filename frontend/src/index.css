@@ -1,1 +1,44 @@
+/* 1. Import Font First */
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;700&display=swap');
+
+/* 2. Load Tailwind v4 */
 @import "tailwindcss";
+
+/* 3. Define Theme Variables (v4 Style) */
+@theme {
+  --font-sans: "Outfit", sans-serif;
+}
+
+/* 4. The Global Mesh Background */
+/* This paints the wall behind your glass dashboard */
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  
+  /* Deep Dark Base Color */
+  background-color: #0f1014;
+  
+  /* The Glowing Mesh Gradient */
+  background-image: 
+    radial-gradient(at 0% 0%, rgba(88, 28, 135, 0.3) 0px, transparent 50%), 
+    radial-gradient(at 100% 0%, rgba(59, 130, 246, 0.3) 0px, transparent 50%), 
+    radial-gradient(at 50% 100%, rgba(236, 72, 153, 0.15) 0px, transparent 50%);
+    
+  background-attachment: fixed;
+  background-size: cover;
+  color: white;
+  min-height: 100vh;
+}
+
+/* Optional: Custom Dark Scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  background: #0f1014;
+}
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border-radius: 5px;
+  border: 1px solid #0f1014;
+}
